@@ -1,0 +1,5 @@
+Options -MultiViews -Indexes
+RewriteEngine On
+
+RewriteCond %{REQUEST_URI} !^/kutip/public
+RewriteRule ^(.*)$ /kutip/public/$1 [L,QSA]
