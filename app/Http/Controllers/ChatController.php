@@ -59,9 +59,13 @@ class ChatController extends Controller
             'username' => 'required|string',
         ]);
 
-        $target = User::where('username', $validated['username'])->first();
+        // Jangan sertakan soft-deleted user
+        $target = User::whereNull('deleted_at')
+            ->where('username', $validated['username'])
+            ->first();
 
         if (!$target) {
+            // Pesan generik — tidak bocorkan apakah user ada tapi dihapus
             return back()->withErrors(['username' => 'User tidak ditemukan.']);
         }
 

@@ -19,6 +19,10 @@ class SettingsController extends Controller
     {
         $user = $this->currentUser($request);
 
+        // Username yang tidak boleh dipakai user (reserved untuk sistem)
+        $reserved = ['deleted', '[deleted]', 'admin', 'administrator', 'moderator',
+                     'mod', 'system', 'koar', 'root', 'support', 'help'];
+
         $validated = $request->validate([
             'username' => [
                 'required',
@@ -27,6 +31,11 @@ class SettingsController extends Controller
                 'max:30',
                 'regex:/^[a-zA-Z0-9_-]+$/',
                 Rule::unique('users', 'username')->ignore($user->id),
+                function ($attribute, $value, $fail) use ($reserved) {
+                    if (in_array(strtolower($value), $reserved, true)) {
+                        $fail('Username tersebut tidak tersedia.');
+                    }
+                },
             ],
         ], [
             'username.regex'  => 'Username hanya boleh huruf, angka, tanda hubung (-), dan garis bawah (_).',

@@ -82,7 +82,9 @@ class IdentifyAnonymousUser
 
         $response = $next($request);
 
-        $response->cookie('koar_token', $token, 60 * 24 * 365, '/', null, false, true);
+        // $secure = true di production (HTTPS), false hanya di local dev
+        $secure = app()->isProduction() || $request->isSecure();
+        $response->cookie('koar_token', $token, 60 * 24 * 365, '/', null, $secure, true, false, 'Lax');
 
         return $response;
     }

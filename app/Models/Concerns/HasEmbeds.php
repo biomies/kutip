@@ -9,7 +9,12 @@ trait HasEmbeds
      */
     public function extractUrls(int $limit = 4): array
     {
-        preg_match_all('/(?<!["\'\[\(<])https?:\/\/[^\s\]\)\>"\']+/i', $this->content, $matches);
+        // Batasi panjang konten sebelum regex — cegah ReDoS pada input sangat panjang
+        $content = \mb_substr($this->content, 0, 5000);
+
+        // Regex sederhana tanpa lookbehind kompleks — lebih aman dari catastrophic backtracking
+        // Karakter set [^\s<>"'] sudah cukup untuk URL praktis
+        preg_match_all('/\bhttps?:\/\/[^\s<>"\']{1,2000}/i', $content, $matches);
 
         $urls = \array_unique($matches[0]);
         $urls = \array_map(fn($u) => \rtrim($u, '.,;:!?)>'), $urls);
@@ -56,13 +61,22 @@ trait HasEmbeds
      */
     public function renderContent(): string
     {
+        // Escape seluruh konten — ini jadi landasan aman sebelum wrap URL
         $escaped = e($this->content);
 
         return preg_replace_callback(
             '/https?:\/\/[^\s\]\)\>"\'&]+(?:&amp;[^\s\]\)\>"\']*)?/i',
             function ($m) {
-                $rawUrl     = html_entity_decode($m[0], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-                $rawUrl     = rtrim($rawUrl, '.,;:!?)>');
+                $rawUrl = html_entity_decode($m[0], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $rawUrl = rtrim($rawUrl, '.,;:!?)>');
+
+                // Pastikan URL hanya http/https — blokir javascript:, data:, dll
+                $scheme = strtolower(parse_url($rawUrl, PHP_URL_SCHEME) ?? '');
+                if (!\in_array($scheme, ['http', 'https'], true)) {
+                    // Kembalikan sebagai teks biasa yang sudah di-escape
+                    return htmlspecialchars($rawUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+
                 $attrUrl    = htmlspecialchars($rawUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 $displayUrl = htmlspecialchars($rawUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 return '<span class="content-url" data-embed-url="' . $attrUrl . '">' . $displayUrl . '</span>';
